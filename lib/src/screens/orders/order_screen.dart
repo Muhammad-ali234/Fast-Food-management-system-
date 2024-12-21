@@ -103,7 +103,12 @@ class OrderScreen extends StatelessWidget {
                       ),
                       ElevatedButton.icon(
                         onPressed: () {
-                         // new order 
+                          // new order
+                          showDialog(
+                              context: context,
+                              builder: (context) => const Dialog(
+                                  child: SizedBox(
+                                      width: 600, child: NewOrderDialog())));
                         },
                         icon: const Icon(Icons.add),
                         label: const Text('New Order'),

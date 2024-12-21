@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/order.dart';
+import '../../models/menu_item.dart';
+import '../../models/combo.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/order_provider.dart';
 
@@ -39,47 +41,67 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                           child: Text(type),
                         ))
                     .toList(),
-                onChanged: (value) => setState(() => _orderType = value!),
+                onChanged: (value) => setState(() {
+                  _orderType = value!;
+                  _formKey.currentState?.validate();
+                }),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _customerNameController,
-                decoration: const InputDecoration(labelText: 'Customer Name'),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _customerPhoneController,
-                decoration: const InputDecoration(labelText: 'Customer Phone'),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Required' : null,
-              ),
+              if (_orderType == 'Delivery') ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _customerNameController,
+                  decoration: const InputDecoration(labelText: 'Customer Name'),
+                  validator: (value) =>
+                      (_orderType == 'Delivery' && value?.isEmpty == true)
+                          ? 'Required for Delivery'
+                          : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _customerPhoneController,
+                  decoration:
+                      const InputDecoration(labelText: 'Customer Phone'),
+                  validator: (value) =>
+                      (_orderType == 'Delivery' && value?.isEmpty == true)
+                          ? 'Required for Delivery'
+                          : null,
+                ),
+              ],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _showAddItemDialog,
-                child: const Text('Add Item'),
+                child: const Text('Add Item/Combo'),
               ),
               const SizedBox(height: 16),
               if (_items.isNotEmpty) ...[
                 const Text('Order Items:'),
                 const SizedBox(height: 8),
-                ...List.generate(_items.length, (index) {
-                  final item = _items[index];
-                  return ListTile(
-                    title: Text('Item #${item.menuItemId}'),
-                    subtitle: Text('Quantity: ${item.quantity}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () {
-                        setState(() {
-                          _items.removeAt(index);
-                          _updateTotal();
-                        });
-                      },
-                    ),
-                  );
-                }),
+                ..._items.map((item) => ListTile(
+                      title: Text('${item.menuItemId}'),
+                      subtitle: Text('Quantity: ${item.quantity}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: () => _updateQuantity(item, -1),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () => _updateQuantity(item, 1),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () {
+                              setState(() {
+                                _items.remove(item);
+                                _updateTotal();
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    )),
                 const SizedBox(height: 16),
                 Text(
                   'Total: \$${_total.toStringAsFixed(2)}',
@@ -106,21 +128,89 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     );
   }
 
+  // void _showAddItemDialog() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => Consumer<MenuProvider>(
+  //       builder: (context, menuProvider, child) {
+  //         final items = menuProvider.items;
+  //         final combos = menuProvider.comboDeals;
+  //         return AlertDialog(
+  //           title: const Text('Add Item/Combo'),
+  //           content: SizedBox(
+  //             width: 300,
+  //             child: Column(
+  //               mainAxisSize: MainAxisSize.min,
+  //               children: [
+  //                 DropdownButtonFormField<int>(
+  //                   decoration: const InputDecoration(labelText: 'Select'),
+  //                   items: [
+  //                     ...items.map((item) => DropdownMenuItem(
+  //                           value: item.id,
+  //                           child: Text(item.name),
+  //                         )),
+  //                     ...combos.map((combo) => DropdownMenuItem(
+  //                           value: combo.id,
+  //                           child: Text('${combo.name} (Combo)'),
+  //                         )),
+  //                   ],
+  //                   onChanged: (value) {
+  //                     if (value != null) {
+  //                       final isCombo =
+  //                           combos.any((combo) => combo.id == value);
+  //                       if (isCombo) {
+  //                         final combo = combos.firstWhere((c) => c.id == value);
+  //                         setState(() {
+  //                           for (var comboItem in combo.items) {
+  //                             _items.add(OrderItem(
+  //                               menuItemId: comboItem.menuItemId,
+  //                               // name: comboItem.name,
+  //                               quantity: comboItem.quantity,
+  //                               price: combo.price,
+  //                             ));
+  //                           }
+  //                         });
+  //                       } else {
+  //                         final item = items.firstWhere((i) => i.id == value);
+  //                         setState(() {
+  //                           _items.add(OrderItem(
+  //                             menuItemId: item.id,
+  //                             // name: item.name,
+  //                             quantity: 1,
+  //                             price: item.price,
+  //                           ));
+  //                         });
+  //                       }
+  //                       _updateTotal();
+  //                       Navigator.pop(context);
+  //                     }
+  //                   },
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
   void _showAddItemDialog() {
     showDialog(
       context: context,
       builder: (context) => Consumer<MenuProvider>(
         builder: (context, menuProvider, child) {
-          final items = menuProvider.items; // Use the `items` getter directly
+          final items = menuProvider.items;
+          final combos = menuProvider.comboDeals;
           return AlertDialog(
-            title: const Text('Add Item'),
+            title: const Text('Add Item/Combo'),
             content: SizedBox(
               width: 300,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Dropdown for Items
                   DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(labelText: 'Item'),
+                    decoration: const InputDecoration(labelText: 'Select Item'),
                     items: items
                         .map((item) => DropdownMenuItem(
                               value: item.id,
@@ -136,8 +226,36 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                             quantity: 1,
                             price: item.price,
                           ));
-                          _updateTotal();
                         });
+                        _updateTotal();
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Dropdown for Combos
+                  DropdownButtonFormField<int>(
+                    decoration:
+                        const InputDecoration(labelText: 'Select Combo'),
+                    items: combos
+                        .map((combo) => DropdownMenuItem(
+                              value: combo.id,
+                              child: Text('${combo.name} (Combo)'),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        final combo = combos.firstWhere((c) => c.id == value);
+                        setState(() {
+                          for (var comboItem in combo.items) {
+                            _items.add(OrderItem(
+                              menuItemId: comboItem.menuItemId,
+                              quantity: comboItem.quantity,
+                              price: combo.price,
+                            ));
+                          }
+                        });
+                        _updateTotal();
                         Navigator.pop(context);
                       }
                     },
@@ -151,11 +269,15 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     );
   }
 
+  void _updateQuantity(OrderItem item, int delta) {
+    setState(() {
+      item.quantity = (item.quantity + delta).clamp(1, 99);
+      _updateTotal();
+    });
+  }
+
   void _updateTotal() {
-    _total = _items.fold(
-      0,
-      (sum, item) => sum + (item.price * item.quantity),
-    );
+    _total = _items.fold(0, (sum, item) => sum + (item.price * item.quantity));
   }
 
   void _createOrder() {
@@ -169,7 +291,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
         totalAmount: _total,
         items: _items,
       );
-
       context.read<OrderProvider>().createOrder(order);
       Navigator.pop(context);
     }

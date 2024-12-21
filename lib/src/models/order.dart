@@ -1,6 +1,6 @@
 class OrderItem {
   final int menuItemId;
-  final int quantity;
+  int quantity;
   final double price;
 
   OrderItem({

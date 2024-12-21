@@ -105,6 +105,7 @@ class _ComboManagementScreenState extends State<ComboManagementScreen> {
         await context.read<ComboProvider>().createCombo(combo);
         Navigator.pop(context);
       } catch (e) {
+        print(e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error creating combo: $e')),
         );

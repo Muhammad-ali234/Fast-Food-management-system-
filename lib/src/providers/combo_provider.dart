@@ -4,13 +4,14 @@ import '../models/combo.dart';
 
 class ComboProvider with ChangeNotifier {
   final PostgreSQLConnection _connection;
-  List<ComboDeal> _combos = [];
+  final List<ComboDeal> _combos = [];
 
   ComboProvider(this._connection);
 
   List<ComboDeal> get combos => _combos;
 
   Future<void> createCombo(ComboDeal combo) async {
+    print("ali");
     try {
       final result = await _connection.query(
         'INSERT INTO combo_deals (name, description, price, is_available) '
